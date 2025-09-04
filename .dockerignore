@@ -1,0 +1,19 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+
+# Development
+.env
+eslint.config.js
+vitest-setup.js
+vitest.config.js
+test/
+README.md
+nodemon.json
+
+# macOS
+.DS_Store
