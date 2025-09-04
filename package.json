@@ -1,0 +1,31 @@
+{
+  "name": "cors-sp",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "src"
+  ],
+  "scripts": {
+    "dev": "PORT=4399 nodemon src/server.js",
+    "test": "vitest",
+    "start": "node src/server.js",
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1",
+    "proxy-from-env": "^1.1.0",
+    "tldjs": "^2.3.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
+    "undici": "^7.15.0",
+    "vitest": "^3.2.4"
+  }
+}

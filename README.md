@@ -1,0 +1,82 @@
+# cors-sp
+
+> 一个现代化、基于 ESM 的 CORS 代理服务，重构自 [cors-anywhere](https://github.com/Rob--W/cors-anywhere)。
+
+## ✨ 功能特性
+
+- **现代架构**：完全基于 ES Modules (ESM) 和最新的 Node.js 实践，无 CommonJS 依赖。
+- **核心代理功能**：保持 `cors-anywhere` 的核心代理能力，解决跨域资源访问问题。
+- **清晰的模块化**：项目结构经过精心设计，分为服务、代理处理、URL 解析、CORS 逻辑等模块，易于维护和扩展。
+- **开发友好**：集成 `nodemon` 实现热重载，`vitest` 提供快速的单元测试体验。
+- **代码规范**：使用 `eslint` 和 `prettier` 保证代码风格一致性和高质量。
+
+## 🚀 快速开始
+
+1. **安装依赖**
+
+   ```bash
+   pnpm install
+   ```
+
+2. **启动开发服务器**
+
+   ```bash
+   pnpm dev
+   ```
+
+服务将默认启动在 `http://localhost:4399`。
+
+## 📁 目录结构
+
+```text
+cors-sp/
+├── src/
+│   ├── server.js        # 服务器入口
+│   ├── proxyHandler.js  # 核心代理逻辑
+│   ├── urlParser.js     # URL 解析
+│   ├── cors.js          # CORS 请求处理
+│   └── utils.js         # 工具函数
+├── test/
+│   └── api.test.js      # API 测试
+├── package.json
+└── README.md
+```
+
+## 🛠️ 配置选项
+
+- `originBlacklist` / `originWhitelist`：来源黑/白名单，用于控制允许访问的来源。
+- `requireHeader`：要求请求中必须包含的头部字段。
+- `removeHeaders` / `setHeaders`：在转发请求前移除或设置特定的请求头。
+- `checkRateLimit`：自定义函数，用于实现速率限制。
+- `redirectSameOrigin`：当请求目标与代理同源时，执行重定向。
+
+## 📜 产品迭代日志
+
+### **v0.1.0 (2025-09-04)**
+
+- **项目初始化与重构**
+  - 使用 ESM 模块系统搭建项目基础架构。
+  - 从原版 `cors-anywhere` 迁移核心逻辑，并进行现代化改造。
+- **核心功能实现**
+  - `server.js`: 创建并启动 HTTP 服务器。
+  - `proxyHandler.js`: 实现核心反向代理功能，使用 `http-proxy` 转发请求。
+  - `cors.js`: 增加 CORS 头部处理逻辑，以允许跨域请求。
+  - `urlParser.js`: 添加 URL 解析和验证逻辑。
+- **开发与测试环境**
+  - 配置 `nodemon` 用于开发环境下的文件监听和服务器自动重启。
+  - 集成 `vitest` 测试框架，并编写了基础的 API 测试用例 (`api.test.js`)。
+- **依赖现代化**
+  - 使用 `tldjs` 替代过时的 `regexp-tld` 用于顶级域名解析。
+  - 引入 `eslint` 和 `prettier` 来规范代码风格。
+
+## ✅ 测试
+
+运行以下命令来执行单元测试：
+
+```bash
+pnpm test
+```
+
+## 📄 许可证
+
+[MIT](./LICENSE)
