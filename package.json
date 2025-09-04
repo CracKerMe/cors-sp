@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "PORT=4399 nodemon src/server.js",
+    "dev:windows": "set PORT=4399 && nodemon src/server.js",
     "test": "vitest",
     "start": "node src/server.js",
     "lint": "eslint . --ext .js",
