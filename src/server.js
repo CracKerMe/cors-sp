@@ -17,11 +17,24 @@
 
 // 基础 HTTP 服务器，ESM 语法
 import http from "http";
-import httpProxy from "http-proxy";
 import { createProxyHandler } from "./proxyHandler.js";
 
 import { withCORS } from "./cors.js";
 import { fileURLToPath } from 'url';
+import { createRequire } from 'node:module';
+
+// 兼容 Node.js 对 util._extend 的弃用警告（DEP0060）
+// 在加载 http-proxy 之前，将 _extend 替换为 Object.assign，避免第三方库触发弃用告警。
+// KISS/YAGNI：就地最小侵入式补丁，避免修改依赖源码。
+const require = createRequire(import.meta.url);
+try {
+  // 通过 CJS require 获取 util，以确保与 http-proxy 内部一致
+  const cjsUtil = require('node:util');
+  cjsUtil._extend = Object.assign;
+} catch {}
+
+// 延迟加载 http-proxy，确保上述替换生效
+const httpProxy = require('http-proxy');
 
 /**
  * 默认服务器端口
