@@ -77,6 +77,12 @@ cors-sp/
 
 ## 📜 产品迭代日志
 
+### **v0.1.5 (2025-10-06)**
+
+- 新增：根路径 `http://localhost:4399/` 返回说明页。
+- 文档：更新 `README.md`、`docs/quick-start.md`、`docs/server-usage.md`、`docs/api-reference.md`。
+- 兼容性：不影响代理路由与错误处理。
+
 ### **v0.1.0 (2025-09-04)**
 
 - **项目初始化与重构**
@@ -105,3 +111,17 @@ pnpm test
 ## 📄 许可证
 
 [MIT](./LICENSE)
+
+提示：直接访问根路径 `http://localhost:4399/` 将返回一页简要说明（文档页），用于快速检查服务运行状态与了解基本用法。
+
+快速验证：
+
+```text
+GET http://localhost:4399/                # 返回说明页
+GET http://localhost:4399/https://api.github.com/users/octocat
+```
+
+## 变更摘要
+
+- 新增：访问根路径 `http://localhost:4399/` 返回简要说明页，便于快速验证与了解用法。
+- 文档更新：同步 `README.md`、`docs/quick-start.md`、`docs/server-usage.md`、`docs/api-reference.md`。

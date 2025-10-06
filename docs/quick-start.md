@@ -24,6 +24,15 @@ Usage: http://localhost:4399/<target-url>
 Example: http://localhost:4399/https://api.example.com/data
 ```
 
+提示：直接访问根路径 `http://localhost:4399/` 将返回一页简要说明（文档页），可用于快速检查服务是否正常运行以及了解基本用法。
+
+快速验证：
+
+```text
+GET http://localhost:4399/                # 返回说明页
+GET http://localhost:4399/https://api.github.com/users/octocat
+```
+
 ## 基本使用
 
 ### 在浏览器中测试

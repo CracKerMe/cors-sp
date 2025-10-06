@@ -175,6 +175,17 @@ server.on('error', (err) => {
    });
    ```
 
+## 说明
+
+直接访问根路径 `http://localhost:4399/` 会返回一页简要说明（文档页），用于快速检查服务运行状态与了解基本用法。
+
+示例验证：
+
+```text
+GET http://localhost:4399/                # 返回说明页
+GET http://localhost:4399/https://api.github.com/users/octocat
+```
+
 2. **开发环境便利**
    ```javascript
    const server = createServer({

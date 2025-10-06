@@ -17,6 +17,15 @@ npm start
 npm run dev
 ```
 
+提示：直接访问根路径 `http://localhost:4399/` 将返回一页简要说明（文档页），用于快速检查服务运行状态与了解基本用法。
+
+快速验证：
+
+```text
+GET http://localhost:4399/                # 返回说明页
+GET http://localhost:4399/https://api.github.com/users/octocat
+```
+
 ### 使用代理
 
 启动服务器后，可以通过以下方式使用代理：

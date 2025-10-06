@@ -18,6 +18,12 @@ export function createProxyHandler(options, proxy) {
     checkRateLimit = null,
     redirectSameOrigin = false,
   } = options || {};
+  // 根路径文档页渲染（KISS/YAGNI：仅提供必要说明）
+  const renderLandingHTML = (req) => {
+    const host = req.headers.host || `localhost:${process.env.PORT || 4399}`;
+    const base = `http://${host}`;
+    return `<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1" />\n  <title>CORS Proxy 服务</title>\n  <style>\n    body { font-family: system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif; margin: 2rem; line-height: 1.6; }\n    code, pre { background: #f5f7fa; padding: 0.2rem 0.4rem; border-radius: 4px; }\n    pre { padding: 0.8rem; overflow: auto; }\n    h1, h2 { margin: 0.2rem 0 0.6rem; }\n    .tip { color: #666; }\n  </style>\n</head>\n<body>\n  <h1>CORS Proxy Server</h1>\n  <p class="tip">通过在目标 URL 前加上代理前缀来解决跨域。</p>\n  <h2>用法</h2>\n  <pre><code>${base}/&lt;目标URL&gt;</code></pre>\n  <h2>示例</h2>\n  <pre><code>GET ${base}/https://api.github.com/users/octocat\nGET ${base}/https://jsonplaceholder.typicode.com/posts/1</code></pre>\n  <h2>说明</h2>\n  <ul>\n    <li>支持 <code>GET/POST/PUT/DELETE</code> 等常见方法。</li>\n    <li>自动添加 CORS 响应头。</li>\n    <li>可设置 <code>PORT</code> 环境变量修改端口（默认 4399）。</li>\n  </ul>\n  <p class="tip">将真实 API 地址拼接在 <code>${base}/</code> 后即可。</p>\n</body>\n</html>`;
+  };
   return (req, res) => {
     // 0. 处理 OPTIONS 预检请求
     if (req.method === "OPTIONS") {
@@ -58,6 +64,12 @@ export function createProxyHandler(options, proxy) {
     }
     // 1. 提取目标 URL
     const url = decodeURIComponent(req.url.substring(1));
+    if (!url || req.url === "/") {
+      const headers = withCORS({ "Content-Type": "text/html; charset=utf-8" }, req);
+      res.writeHead(200, headers);
+      res.end(renderLandingHTML(req));
+      return;
+    }
     const targetLocation = parseURL(url);
     if (!targetLocation) {
       res.writeHead(400, withCORS({ "Content-Type": "text/plain" }, req));
