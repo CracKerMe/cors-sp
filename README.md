@@ -75,6 +75,21 @@ cors-sp/
 - `checkRateLimit`：自定义函数，用于实现速率限制。
 - `redirectSameOrigin`：当请求目标与代理同源时，执行重定向。
 
+## 📡 WebSocket 支持
+
+- 直接将真实 WS/WSS 地址拼接在代理前缀后：
+  - 示例：`ws://localhost:4399/ws://echo.websocket.events`
+  - 或：`ws://localhost:4399/wss://echo.websocket.events`
+- 服务器对 `upgrade` 事件进行转发，并为上游创建协议对应的 Keep-Alive `Agent`。
+
+### Docker 部署注意事项
+- 使用 `-p 4399:4399` 映射端口即可同时支持 HTTP 与 WebSocket（同端口）。
+- 若容器前有反向代理（如 Nginx/Caddy），需确保转发 `Upgrade` 与 `Connection` 头：
+  - Nginx 示例：
+    - `proxy_set_header Upgrade $http_upgrade;`
+    - `proxy_set_header Connection $connection_upgrade;`
+- 镜像内置 `HEALTHCHECK` 请求 `GET /healthz`；可用于编排系统就绪探针。
+
 ## 📜 产品迭代日志
 
 ### **v0.1.5 (2025-10-06)**
@@ -125,3 +140,9 @@ GET http://localhost:4399/https://api.github.com/users/octocat
 
 - 新增：访问根路径 `http://localhost:4399/` 返回简要说明页，便于快速验证与了解用法。
 - 文档更新：同步 `README.md`、`docs/quick-start.md`、`docs/server-usage.md`、`docs/api-reference.md`。
+
+## 运行端点（可观测性/可靠性）
+
+- `GET /healthz`：返回 `{ status: "ok", uptime }` 用于健康检查。
+- `GET /metrics`：Prometheus 指标（`cors_sp_requests_total`、`cors_sp_requests_inflight`、`cors_sp_errors_total`）。
+- 统一错误响应：错误场景将返回 `application/json`，包含 `error` 字段。

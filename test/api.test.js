@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createServer } from "../src/server.js";
 
-describe("CORS Anywhere API Tests", () => {
+describe("cors-sp API Tests", () => {
   let server;
   let serverAddress;
 
@@ -26,21 +26,40 @@ describe("CORS Anywhere API Tests", () => {
     });
   });
 
-  it("should respond with usage information for the root path", async () => {
-    const res = await fetch(serverAddress + "/http://example.com", {
+  it("root path returns landing html", async () => {
+    const res = await fetch(serverAddress + "/", {
       headers: { Origin: "http://example.com" },
     });
     expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/text\/html/);
     const text = await res.text();
-    expect(text).toContain("<html>");
+    expect(text).toContain("CORS Proxy Server");
   });
 
-  it("should return 404 for invalid proxy requests", async () => {
+  it("invalid target url returns JSON error", async () => {
     const res = await fetch(`${serverAddress}/invalidurl`, {
       headers: { Origin: "http://example.com" },
     });
     expect(res.status).toBe(400);
+    expect(res.headers.get("content-type")).toMatch(/application\/json/);
+    const body = await res.json();
+    expect(body).toHaveProperty("error", "invalid_target_url");
+  });
+
+  it("healthz endpoint returns ok", async () => {
+    const res = await fetch(`${serverAddress}/healthz`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/application\/json/);
+    const body = await res.json();
+    expect(body).toHaveProperty("status", "ok");
+    expect(typeof body.uptime).toBe("number");
+  });
+
+  it("metrics endpoint returns prometheus text", async () => {
+    const res = await fetch(`${serverAddress}/metrics`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/plain");
     const text = await res.text();
-    expect(text).toContain("Invalid target URL");
+    expect(text).toContain("cors_sp_requests_total");
   });
 });

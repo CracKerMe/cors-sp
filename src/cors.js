@@ -14,5 +14,9 @@ export function withCORS(headers, req) {
     "access-control-allow-headers":
       req.headers["access-control-request-headers"] || "*",
     "access-control-expose-headers": "*",
+    // 可观测性与缓存友好：避免缓存污染
+    Vary: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+    // 预检缓存（基础默认）
+    "Access-Control-Max-Age": "600",
   };
 }

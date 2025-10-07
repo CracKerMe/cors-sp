@@ -74,8 +74,8 @@ USER nodejs
 EXPOSE 4399
 
 # 健康检查（轻量级 TCP 端口检测）
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "require('net').connect(4399,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "(async()=>{try{const http=require('http');const req=http.request({host:'127.0.0.1',port:4399,path:'/healthz',method:'GET'},res=>{res.statusCode===200?process.exit(0):process.exit(1)});req.on('error',()=>process.exit(1));req.end();}catch(e){process.exit(1)}})()"
 
-# Node.js 18+ 已内置信号处理，无需 dumb-init
+# 启动命令
 CMD ["node", "src/server.js"]

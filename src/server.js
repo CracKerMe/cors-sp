@@ -9,6 +9,7 @@
  * - 自动 CORS 头部处理
  * - 错误处理和响应
  * - 支持多种配置选项
+ * - 增强：WebSocket、超时、Keep-Alive
  * 
  * @fileoverview CORS 代理服务器核心模块
  * @author cors-sp
@@ -17,24 +18,21 @@
 
 // 基础 HTTP 服务器，ESM 语法
 import http from "http";
+import https from "https";
 import { createProxyHandler } from "./proxyHandler.js";
-
 import { withCORS } from "./cors.js";
-import { fileURLToPath } from 'url';
-import { createRequire } from 'node:module';
+import { fileURLToPath } from "url";
+import { createRequire } from "node:module";
 
-// 兼容 Node.js 对 util._extend 的弃用警告（DEP0060）
-// 在加载 http-proxy 之前，将 _extend 替换为 Object.assign，避免第三方库触发弃用告警。
-// KISS/YAGNI：就地最小侵入式补丁，避免修改依赖源码。
+// 兼容 http-proxy 内部 util._extend 的弃用告警
 const require = createRequire(import.meta.url);
 try {
-  // 通过 CJS require 获取 util，以确保与 http-proxy 内部一致
-  const cjsUtil = require('node:util');
+  const cjsUtil = require("node:util");
   cjsUtil._extend = Object.assign;
 } catch {}
 
 // 延迟加载 http-proxy，确保上述替换生效
-const httpProxy = require('http-proxy');
+const httpProxy = require("http-proxy");
 
 /**
  * 默认服务器端口
@@ -57,6 +55,9 @@ const PORT = process.env.PORT || 4399;
  * @param {Object} [options.setHeaders={}] - 需要设置的请求头键值对
  * @param {Function} [options.checkRateLimit=null] - 限流检查函数
  * @param {boolean} [options.redirectSameOrigin=false] - 是否只允许同源重定向
+ * - 默认超时：client/proxy 15s
+ * - WebSocket 代理支持
+ * - Keep-Alive Agent（WS 路径与必要处）
  * 
  * @returns {http.Server} 配置好的 HTTP 服务器实例
  * 
@@ -93,30 +94,49 @@ const PORT = process.env.PORT || 4399;
  *   checkRateLimit
  * });
  */
-const createServer = (options) => {
-  // 创建 HTTP 代理服务器实例
-  const proxy = httpProxy.createProxyServer(options);
-  
-  // 处理代理错误
-  proxy.on("error", (err, req, res) => {
-    const headers = withCORS({ "Content-Type": "text/plain" }, req);
-    res.writeHead(502, headers);
-    res.end("Proxy error: " + err.message);
+const createServer = (options = {}) => {
+  const proxy = httpProxy.createProxyServer({
+    timeout: options.timeout ?? 15000,
+    proxyTimeout: options.proxyTimeout ?? 15000,
+    ...options,
   });
 
-  // 创建代理处理器并返回 HTTP 服务器
+  // 代理错误统一为 JSON 文本
+  proxy.on("error", (err, req, res) => {
+    try {
+      const headers = withCORS({ "Content-Type": "application/json" }, req || { headers: {} });
+      res.writeHead(502, headers);
+      res.end(JSON.stringify({ error: "proxy_error", message: err?.message || "unknown" }));
+    } catch {}
+  });
+
+  // HTTP 处理器
   const handler = createProxyHandler(options, proxy);
-  return http.createServer(handler);
+  const server = http.createServer(handler);
+
+  // WebSocket 代理支持
+  server.on("upgrade", (req, socket, head) => {
+    try {
+      const raw = decodeURIComponent((req.url || "").substring(1));
+      if (!raw) {
+        socket.destroy();
+        return;
+      }
+      const target = new URL(raw);
+      const agent = target.protocol === "https:" ? new https.Agent({ keepAlive: true, maxSockets: 100 }) : new http.Agent({ keepAlive: true, maxSockets: 100 });
+      proxy.ws(req, socket, head, {
+        target: target.href,
+        changeOrigin: true,
+        agent,
+      });
+    } catch {
+      socket.destroy();
+    }
+  });
+
+  return server;
 };
 
-/**
- * 直接运行服务器时的启动逻辑
- * 
- * 当直接运行此文件时（如：node src/server.js），会自动启动服务器。
- * 这种设计允许文件既可以作为模块导入使用，也可以直接运行。
- * 
- * 检测逻辑兼容 Windows 和 Unix 系统。
- */
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // 使用默认配置创建服务器
   const server = createServer({});

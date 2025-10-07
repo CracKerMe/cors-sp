@@ -1,6 +1,7 @@
 import { parseURL } from "./urlParser.js";
 import { isValidHostName } from "./utils.js";
 import { withCORS } from "./cors.js";
+import { onRequestStart, onRequestEnd, onError, renderPrometheus } from "./metrics.js";
 
 /**
  * 创建代理处理器
@@ -25,6 +26,30 @@ export function createProxyHandler(options, proxy) {
     return `<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1" />\n  <title>CORS Proxy 服务</title>\n  <style>\n    body { font-family: system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif; margin: 2rem; line-height: 1.6; }\n    code, pre { background: #f5f7fa; padding: 0.2rem 0.4rem; border-radius: 4px; }\n    pre { padding: 0.8rem; overflow: auto; }\n    h1, h2 { margin: 0.2rem 0 0.6rem; }\n    .tip { color: #666; }\n  </style>\n</head>\n<body>\n  <h1>CORS Proxy Server</h1>\n  <p class="tip">通过在目标 URL 前加上代理前缀来解决跨域。</p>\n  <h2>用法</h2>\n  <pre><code>${base}/&lt;目标URL&gt;</code></pre>\n  <h2>示例</h2>\n  <pre><code>GET ${base}/https://api.github.com/users/octocat\nGET ${base}/https://jsonplaceholder.typicode.com/posts/1</code></pre>\n  <h2>说明</h2>\n  <ul>\n    <li>支持 <code>GET/POST/PUT/DELETE</code> 等常见方法。</li>\n    <li>自动添加 CORS 响应头。</li>\n    <li>可设置 <code>PORT</code> 环境变量修改端口（默认 4399）。</li>\n  </ul>\n  <p class="tip">将真实 API 地址拼接在 <code>${base}/</code> 后即可。</p>\n</body>\n</html>`;
   };
   return (req, res) => {
+    const start = Date.now();
+    const reqId = Math.random().toString(36).slice(2, 10);
+    onRequestStart();
+    const log = (level, data) => {
+      try {
+        console.log(JSON.stringify({ level, reqId, method: req.method, path: req.url, origin: req.headers.origin || null, ...data }));
+      } catch {}
+    };
+
+    // 健康检查与指标
+    if (req.url === "/healthz") {
+      const headers = withCORS({ "Content-Type": "application/json" }, req);
+      res.writeHead(200, headers);
+      res.end(JSON.stringify({ status: "ok", uptime: process.uptime() }));
+      onRequestEnd();
+      return;
+    }
+    if (req.url === "/metrics") {
+      const text = renderPrometheus();
+      res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4" });
+      res.end(text);
+      onRequestEnd();
+      return;
+    }
     // 0. 处理 OPTIONS 预检请求
     if (req.method === "OPTIONS") {
       const headers = withCORS({}, req);
@@ -36,13 +61,17 @@ export function createProxyHandler(options, proxy) {
     // 0.1 检查来源黑/白名单
     const origin = req.headers.origin || "";
     if (originBlacklist.length && originBlacklist.includes(origin)) {
-      res.writeHead(403, withCORS({ "Content-Type": "text/plain" }, req));
-      res.end("Origin is blacklisted");
+      onError();
+      res.writeHead(403, withCORS({ "Content-Type": "application/json" }, req));
+      res.end(JSON.stringify({ error: "origin_blacklisted" }));
+      onRequestEnd();
       return;
     }
     if (originWhitelist.length && !originWhitelist.includes(origin)) {
-      res.writeHead(403, withCORS({ "Content-Type": "text/plain" }, req));
-      res.end("Origin is not whitelisted");
+      onError();
+      res.writeHead(403, withCORS({ "Content-Type": "application/json" }, req));
+      res.end(JSON.stringify({ error: "origin_not_whitelisted" }));
+      onRequestEnd();
       return;
     }
 
@@ -51,15 +80,19 @@ export function createProxyHandler(options, proxy) {
       requireHeader.length &&
       !requireHeader.every((h) => req.headers[h.toLowerCase()])
     ) {
-      res.writeHead(400, withCORS({ "Content-Type": "text/plain" }, req));
-      res.end("Missing required header");
+      onError();
+      res.writeHead(400, withCORS({ "Content-Type": "application/json" }, req));
+      res.end(JSON.stringify({ error: "missing_required_header" }));
+      onRequestEnd();
       return;
     }
 
     // 0.3 检查限流
     if (typeof checkRateLimit === "function" && !checkRateLimit(req)) {
-      res.writeHead(429, withCORS({ "Content-Type": "text/plain" }, req));
-      res.end("Rate limit exceeded");
+      onError();
+      res.writeHead(429, withCORS({ "Content-Type": "application/json" }, req));
+      res.end(JSON.stringify({ error: "rate_limit_exceeded" }));
+      onRequestEnd();
       return;
     }
     // 1. 提取目标 URL
@@ -68,18 +101,23 @@ export function createProxyHandler(options, proxy) {
       const headers = withCORS({ "Content-Type": "text/html; charset=utf-8" }, req);
       res.writeHead(200, headers);
       res.end(renderLandingHTML(req));
+      onRequestEnd();
       return;
     }
     const targetLocation = parseURL(url);
     if (!targetLocation) {
-      res.writeHead(400, withCORS({ "Content-Type": "text/plain" }, req));
-      res.end("Invalid target URL");
+      onError();
+      res.writeHead(400, withCORS({ "Content-Type": "application/json" }, req));
+      res.end(JSON.stringify({ error: "invalid_target_url" }));
+      onRequestEnd();
       return;
     }
     // 2. 主机名校验
     if (!isValidHostName(targetLocation.hostname)) {
-      res.writeHead(404, withCORS({ "Content-Type": "text/plain" }, req));
-      res.end("Invalid host");
+      onError();
+      res.writeHead(404, withCORS({ "Content-Type": "application/json" }, req));
+      res.end(JSON.stringify({ error: "invalid_host" }));
+      onRequestEnd();
       return;
     }
 
@@ -109,11 +147,28 @@ export function createProxyHandler(options, proxy) {
       Object.entries(withCORS({}, req2)).forEach(([k, v]) => {
         res2.setHeader(k, v);
       });
+      // 记录成功日志
+      try { console.log(JSON.stringify({ level: "info", reqId, status: proxyRes.statusCode, target: targetLocation.href, duration_ms: Date.now() - start })); } catch {}
     });
     proxy.web(req, res, {
       target: targetLocation.href,
       ignorePath: true,
       changeOrigin: true,
     });
+    res.on("close", () => {
+      onRequestEnd();
+    });
   };
 }
+    // 基础可靠性：socket 超时（15s 默认）
+    try {
+      req.socket.setTimeout(15000, () => {
+        onError();
+        try {
+          res.writeHead(504, withCORS({ "Content-Type": "application/json" }, req));
+          res.end(JSON.stringify({ error: "client_timeout" }));
+        } catch {}
+        try { req.destroy(); } catch {}
+        onRequestEnd();
+      });
+    } catch {}
